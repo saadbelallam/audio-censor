@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "better-profanity>=0.7.0",
+    "fastapi[all]>=0.162.0",
     "pydub>=0.25.1",
+    "scalar-fastapi>=1.9.1",
     "whisperx>=3.8.6",
 ]

@@ -97,10 +97,3 @@ class AudioCensor:
             audio.export(output_path)
         else:
             audio.export(output_path, format=output_format)
- 
-    
-ac = AudioCensor()
-result = ac.transcribe_audio("./test.ogg")
-words = ac.detect_profanity(result)
-ac.mute_audio("./test.ogg", "./test_muted.ogg", words)
-print_json(data=words)
