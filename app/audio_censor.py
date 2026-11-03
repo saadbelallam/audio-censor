@@ -1,5 +1,15 @@
+from typing import NotRequired, TypedDict
+
+from better_profanity import profanity
 from rich import print_json
 import whisperx
+
+class Word(TypedDict):
+    word: str
+    start: float
+    end: float
+    score: float
+    flagged: NotRequired[bool]
 
 
 class AudioCensor:
@@ -37,6 +47,13 @@ class AudioCensor:
 
         return aligned_transcription["word_segments"]
 
+    def detect_profanity(self, word_segments: list[Word]) -> list[Word]:
+        for word_segment in word_segments:
+            word_segment["flagged"] = profanity.contains_profanity(word_segment["word"])
+
+        return word_segments
+
+    
 ac = AudioCensor()
 result = ac.transcribe_audio("./test.ogg")
-print_json(data = result)
+print_json(data = ac.detect_profanity(result))
