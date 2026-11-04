@@ -35,6 +35,12 @@ async def login_user(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/audio", response_model=list[AudioRead])
+async def read_all_audio(service: AudioServiceDep, user: UserDep):
+    return user.audios  # Assuming the User model has a relationship to Audio
+
+
+
 @router.get("/audio/{id}", response_model=AudioRead)
 async def read_audio(id: UUID, service: AudioServiceDep, user: UserDep):
     audio = await service.get_audio(id)
@@ -44,7 +50,7 @@ async def read_audio(id: UUID, service: AudioServiceDep, user: UserDep):
     return audio
 
 @router.post("/audio", response_model=AudioRead)
-async def submit_audio(audio_file: UploadFile, service: AudioServiceDep):
-    audio = await service.add_audio(audio_file)
+async def submit_audio(audio_file: UploadFile, service: AudioServiceDep, user: UserDep):
+    audio = await service.add_audio(audio_file, user)
     
     return audio

@@ -17,4 +17,5 @@ dependencies = [
     "sqlmodel>=0.0.48",
     "whisperx>=3.8.6",
     "pyjwt>=2.15.1",
+    "alembic>=1.20.1",
 ]

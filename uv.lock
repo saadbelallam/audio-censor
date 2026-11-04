@@ -411,6 +411,7 @@ name = "censor-project"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "alembic" },
     { name = "asyncpg" },
     { name = "better-profanity" },
     { name = "fastapi", extra = ["all"] },
@@ -427,6 +428,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "alembic", specifier = ">=1.20.1" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "better-profanity", specifier = ">=0.7.0" },
     { name = "fastapi", extras = ["all"], specifier = ">=0.162.0" },
