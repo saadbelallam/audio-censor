@@ -16,4 +16,5 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.0",
     "sqlmodel>=0.0.48",
     "whisperx>=3.8.6",
+    "pyjwt>=2.15.1",
 ]

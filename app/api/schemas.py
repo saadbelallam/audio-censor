@@ -15,6 +15,9 @@ class UserRead(BaseModel):
     created_at: datetime
     email: str
 
+class TokenData(BaseModel):
+    access_token: str
+    token_type: str
 
 class AudioRead(BaseModel):
     id: UUID
