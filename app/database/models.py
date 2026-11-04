@@ -1,10 +1,19 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from sqlmodel import DateTime, Field, Relationship, SQLModel
+from enum import Enum
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
+
+class AudioStatus(Enum):
+    pending = "pending"
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
+
+    
 class User(SQLModel, table=True):
     __tablename__ = "user"
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -24,6 +33,8 @@ class Audio(SQLModel, table=True):
         sa_type=DateTime(timezone=True),
     )
     file_path: str
-    censored_file_path: str
+    censored_file_path: str | None = Field(default=None)
+
+    status: AudioStatus = Field(default=AudioStatus.pending)
     user_id: UUID = Field(foreign_key="user.id")
     user: User = Relationship(back_populates="audios", sa_relationship_kwargs={"lazy": "selectin"})

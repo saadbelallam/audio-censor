@@ -3,9 +3,13 @@ from pathlib import Path
 from typing import NotRequired, TypedDict
 
 from better_profanity import profanity
+from celery import Task
 from pydub import AudioSegment
 from pydub.generators import Sine
 from rich import print_json
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session, create_engine
+from app.config import settings
 import whisperx
 
 warnings.filterwarnings("ignore")
@@ -19,24 +23,35 @@ class Word(TypedDict):
     flagged: NotRequired[bool]
 
 
-class AudioCensor:
+class AudioCensor(Task):
     def __init__(self) -> None:
         self.model_name = "small"
         self.device = "cpu"
         self.compute_type = "int8"
         self.language = "fr"
-        self.transcription_model = whisperx.load_model(
-            self.model_name,
-            device=self.device,
-            compute_type=self.compute_type,
-            language=self.language,
-        )
-        self.alignment_model,  self.alignment_metadata = whisperx.load_align_model(
-            language_code=self.language, device=self.device,
+        self.transcription_model = None
+        self.alignment_model,  self.alignment_metadata = None, None
+
+        # Initialize the database engine for synchronous operations
+        # Because celery tasks are synchronous, we need to use a synchronous database engine here.
+        self.engine = create_engine(url=settings.DB_URL.replace("+asyncpg", "+psycopg2"))
+        self.session_local = sessionmaker(
+            bind=self.engine, class_=Session, expire_on_commit=False
         )
 
+        
     def transcribe_audio(self, audio_path: str) -> list[dict]:
-        """Transcribe and forced-align a French audio file using the CPU."""
+        """Transcribe and forced-align an audio file using the CPU."""
+
+        if self.transcription_model is None:
+            self.transcription_model = whisperx.load_model(
+                self.model_name, device=self.device, compute_type=self.compute_type
+            )
+        if self.alignment_model is None or self.alignment_metadata is None:
+            self.alignment_model, self.alignment_metadata = whisperx.load_align_model(
+                language_code=self.language, device=self.device
+            )
+
         audio = whisperx.load_audio(audio_path)
         transcription = self.transcription_model.transcribe(
             audio,

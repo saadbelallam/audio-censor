@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.database.models import AudioStatus
+
 
 
 class UserCreate(BaseModel):
@@ -22,4 +24,5 @@ class TokenData(BaseModel):
 class AudioRead(BaseModel):
     id: UUID
     created_at: datetime
-    censored_file_path: str
+    censored_file_path: str | None
+    status: AudioStatus
