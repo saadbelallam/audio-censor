@@ -22,9 +22,7 @@ def transcribe_audio_task(self: AudioCensor, id: str) -> None:
         session.commit()
 
         try:
-            audio.transcription = self.transcribe_audio(
-                get_file_path(audio.file_path)
-            )
+            audio.transcription = self.transcribe_audio(audio.file_path)
         except Exception:
             audio.status = AudioStatus.failed
             raise
@@ -69,9 +67,8 @@ def render_audio_task(self: AudioCensor, id: str) -> None:
             session.commit()
 
         try:
-            input_path = get_file_path(audio.file_path)
-            output_filename = f"censored_{audio.file_path}"
-            output_path = get_file_path(output_filename)
+            input_path = audio.file_path
+            output_path = f"censored_{audio.file_path}"
             sound_effect_path = (
                 get_file_path(audio.sound_effect.file_path)
                 if audio.sound_effect is not None
@@ -85,7 +82,7 @@ def render_audio_task(self: AudioCensor, id: str) -> None:
                 beep=audio.use_beep,
                 sound_effect_path=sound_effect_path,
             )
-            audio.censored_file_path = output_filename
+            audio.censored_file_path = f"censored_{audio.file_path}"
             audio.status = AudioStatus.completed
         except Exception:
             audio.status = AudioStatus.failed

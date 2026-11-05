@@ -5,9 +5,9 @@ from sqlmodel import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.worker.audio_censor import AudioCensor
-from app.database.models import Audio, AudioStatus, SoundEffect, User
+from app.database.models import Audio, SoundEffect, User
 from app.api.schemas.audio import CensorOptions, SubtitleOptions
-from app.utils import save_file
+from app.object_storage import storage
 from celery import chain
 
 from app.worker.tasks import (
@@ -25,16 +25,17 @@ class AudioService:
     async def get_audio(self, id: UUID) -> Audio | None:
         return await self.session.get(Audio, id)
     
-    async def add_audio(self, file: UploadFile, user: User, options: CensorOptions) -> Audio:
-        save_file(file)
+    async def add_audio(self, file: UploadFile, user: User, options: CensorOptions | None = None) -> Audio:
+        # Save the uploaded file to object storage
+        storage.upload_file(file.file, file.filename, file.content_type)
         
         audio = Audio(
             name=file.filename.split(".")[0],
             file_path=file.filename,
             user_id=user.id,
-            user_list=options.user_list,
-            use_beep=options.use_beep,
-            sound_effect_id=options.sound_effect_id
+            user_list=options.user_list if options else None,
+            use_beep=options.use_beep if options else None,
+            sound_effect_id=options.sound_effect_id if options else None
             )
         self.session.add(audio)
         await self.session.commit()

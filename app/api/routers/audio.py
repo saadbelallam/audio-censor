@@ -7,6 +7,7 @@ from pydantic import Json
 
 from app.api.dependencies import AudioServiceDep, UserDep
 from app.api.schemas.audio import AudioRead, CensorOptions, SubtitleOptions
+from app.object_storage import storage
 from app.utils import get_file_path
 
 
@@ -34,9 +35,10 @@ async def read_audio(id: UUID, service: AudioServiceDep, user: UserDep):
 @router.post("/", response_model=AudioRead)
 async def submit_audio(
     audio_file: UploadFile,
-    options: Annotated[Json[CensorOptions], Form()],
     service: AudioServiceDep,
     user: UserDep,
+    options: Annotated[Json[CensorOptions], Form()] = None,
+    
 ):
     return await service.add_audio(audio_file, user, options)
 
@@ -88,13 +90,12 @@ async def download_audio(
     service: AudioServiceDep,
     user: UserDep,
 ):
-    audio_file = await service.get_audio_file(id, user)
+    audio_file = await service.get_audio(id)
     if audio_file is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Audio not found",
         )
 
-    path = get_file_path(audio_file.censored_file_path)
-
-    return FileResponse(path, media_type="audio/mpeg", filename=audio_file.original_file_name)
+    url = storage.get_file_url(audio_file.censored_file_path)
+    return {"file_url": url}

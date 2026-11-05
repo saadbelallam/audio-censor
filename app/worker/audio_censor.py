@@ -11,7 +11,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine
 from uuid import UUID
 from app.config import settings
-import whisperx
+from app.object_storage import storage
+from replicate.client import Client
 
 from app.database.models import Audio, AudioStatus
 
@@ -28,12 +29,7 @@ class Word(TypedDict):
 
 class AudioCensor(Task):
     def __init__(self) -> None:
-        self.model_name = "small"
-        self.device = "cpu"
-        self.compute_type = "int8"
-        self.language = "fr"
-        self.transcription_model = None
-        self.alignment_model,  self.alignment_metadata = None, None
+        self.replicate_client = Client(settings.REPLICATE_API_TOKEN)
 
         self.punctuation_table = str.maketrans("", "", """!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~""")
 
@@ -46,33 +42,23 @@ class AudioCensor(Task):
 
         
     def transcribe_audio(self, audio_path: str) -> list[dict]:
-        """Transcribe and forced-align an audio file using the CPU."""
+        url = storage.get_file_url(audio_path)
 
-        if self.transcription_model is None:
-            self.transcription_model = whisperx.load_model(
-                self.model_name, device=self.device, compute_type=self.compute_type
-            )
-        if self.alignment_model is None or self.alignment_metadata is None:
-            self.alignment_model, self.alignment_metadata = whisperx.load_align_model(
-                language_code=self.language, device=self.device
-            )
-
-        audio = whisperx.load_audio(audio_path)
-        transcription = self.transcription_model.transcribe(
-            audio,
-            batch_size=1,
-            language=self.language,
-        )
-        aligned_transcription = whisperx.align(
-            transcription["segments"],
-            self.alignment_model,
-            self.alignment_metadata,
-            audio,
-            self.device,
-            return_char_alignments=False,
+        output = self.replicate_client.run(
+            "victor-upmeet/whisperx:655845d6190ef70573c669245f245892cd039df4b880a1e3a65852c09252f5cc",
+            input={
+                "audio_file": url,
+                "language": "en",
+                "align_output": True,
+            }
         )
 
-        return aligned_transcription["word_segments"]
+        return [
+            word 
+            for segment in output["segments"]
+            for word in segment["words"]
+        ]
+
 
     def detect_profanity(self, word_segments: list[Word], user_list: list[str] | None = None) -> list[Word]:
         
@@ -101,10 +87,10 @@ class AudioCensor(Task):
         beep: bool = True,
         sound_effect_path: str | None = None,
     ) -> None:
-        audio = AudioSegment.from_file(input_path)
+        audio = storage.download_audio(input_path)
         sound_effect = None
         if sound_effect_path is not None and not beep:
-            sound_effect = AudioSegment.from_file(sound_effect_path)
+            sound_effect = storage.download_audio(sound_effect_path)
 
 
         for word_segment in word_segments:
@@ -138,10 +124,7 @@ class AudioCensor(Task):
             audio = audio[:start_ms] + replacement + audio[end_ms:]
 
         output_format = Path(output_path).suffix.lstrip(".") or None
-        if output_format is None:
-            audio.export(output_path)
-        else:
-            audio.export(output_path, format=output_format)
+        storage.upload_audio(audio, output_path, format=output_format)
 
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
