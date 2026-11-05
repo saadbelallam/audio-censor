@@ -9,8 +9,11 @@ from pydub.generators import Sine
 from rich import print_json
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine
+from uuid import UUID
 from app.config import settings
 import whisperx
+
+from app.database.models import Audio, AudioStatus
 
 warnings.filterwarnings("ignore")
 
@@ -31,6 +34,8 @@ class AudioCensor(Task):
         self.language = "fr"
         self.transcription_model = None
         self.alignment_model,  self.alignment_metadata = None, None
+
+        self.punctuation_table = str.maketrans("", "", """!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~""")
 
         # Initialize the database engine for synchronous operations
         # Because celery tasks are synchronous, we need to use a synchronous database engine here.
@@ -69,21 +74,38 @@ class AudioCensor(Task):
 
         return aligned_transcription["word_segments"]
 
-    def detect_profanity(self, word_segments: list[Word]) -> list[Word]:
-        for word_segment in word_segments:
-            word_segment["flagged"] = profanity.contains_profanity(word_segment["word"])
+    def detect_profanity(self, word_segments: list[Word], user_list: list[str] | None = None) -> list[Word]:
+        
+        updated_segment = []
+       
+        for segment in word_segments:
+            #Remove the punctuation from the word usinf string translation
+            word = segment["word"].translate(self.punctuation_table)
 
-        return word_segments
+            updated_segment.append({
+                **segment,
+                "flagged": profanity.contains_profanity(word) or (
+                     user_list is not None and word.lower() in user_list
+                )
+            })
+            
+            
+        return updated_segment
 
 
-    def mute_audio(
+    def render_audio(
         self,
         input_path: str,
         output_path: str,
         word_segments: list[Word],
         beep: bool = True,
+        sound_effect_path: str | None = None,
     ) -> None:
         audio = AudioSegment.from_file(input_path)
+        sound_effect = None
+        if sound_effect_path is not None and not beep:
+            sound_effect = AudioSegment.from_file(sound_effect_path)
+
 
         for word_segment in word_segments:
             if not word_segment.get("flagged", False):
@@ -104,6 +126,14 @@ class AudioCensor(Task):
                     .to_audio_segment(duration=end_ms - start_ms)
                     .apply_gain(-6)
                 )
+            elif sound_effect is not None:
+                replacement = (
+                    sound_effect
+                    * ((end_ms - start_ms + len(sound_effect) - 1) // len(sound_effect))
+                )[:end_ms - start_ms]
+                replacement = replacement.set_frame_rate(audio.frame_rate).set_channels(
+                    audio.channels
+                )
 
             audio = audio[:start_ms] + replacement + audio[end_ms:]
 
@@ -112,3 +142,16 @@ class AudioCensor(Task):
             audio.export(output_path)
         else:
             audio.export(output_path, format=output_format)
+
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        id = args[0] if args else kwargs.get("id")
+        if id is not None:
+            with self.session_local() as session:
+                audio = session.get(Audio, UUID(id))
+                if audio is not None:
+                    audio.status = AudioStatus.failed
+                    session.add(audio)
+                    session.commit()
+
+        return super().on_failure(exc, task_id, args, kwargs, einfo)

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from scalar_fastapi import get_scalar_api_reference
 
-from app.api.router import router
+from app.api.router import master_router
 from app.database.session import init_db
 from app.utils import UPLOADS_DIR
 
@@ -17,8 +17,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(docs_url=None, lifespan=lifespan)
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
-app.include_router(router)
+# app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+app.include_router(master_router)
 
 
 @app.get("/docs", include_in_schema=False)

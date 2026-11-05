@@ -1,11 +1,20 @@
+import random
+
 from fastapi import UploadFile
 from sqlmodel import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.worker.audio_censor import AudioCensor
-from app.database.models import Audio, User
+from app.database.models import Audio, AudioStatus, SoundEffect, User
+from app.api.schemas.audio import CensorOptions, SubtitleOptions
 from app.utils import save_file
-from app.worker.tasks import censor_audio_task
+from celery import chain
+
+from app.worker.tasks import (
+    detect_profanity_task,
+    render_audio_task,
+    transcribe_audio_task,
+)
 
 
 class AudioService:
@@ -16,16 +25,114 @@ class AudioService:
     async def get_audio(self, id: UUID) -> Audio | None:
         return await self.session.get(Audio, id)
     
-    async def add_audio(self, file: UploadFile, user: User) -> Audio:
+    async def add_audio(self, file: UploadFile, user: User, options: CensorOptions) -> Audio:
         save_file(file)
         
-        audio = Audio(file_path=file.filename, user_id=user.id)
+        audio = Audio(
+            name=file.filename.split(".")[0],
+            file_path=file.filename,
+            user_id=user.id,
+            user_list=options.user_list,
+            use_beep=options.use_beep,
+            sound_effect_id=options.sound_effect_id
+            )
         self.session.add(audio)
         await self.session.commit()
         await self.session.refresh(audio)
 
-        censor_audio_task.delay(str(audio.id))  # Trigger the Celery task to process the audio
+        audio_id = str(audio.id)
+        chain(
+            transcribe_audio_task.si(audio_id),
+            detect_profanity_task.si(audio_id),
+            render_audio_task.si(audio_id),
+        ).apply_async()
         
         
         return audio
+
+    async def update_audio(
+        self,
+        audio_id: UUID,
+        options: CensorOptions,
+        user: User,
+    ) -> Audio | None:
+        audio = await self.session.get(Audio, audio_id)
+        if audio is None or audio.user_id != user.id:
+            return None
+
+        user_list_changed = audio.user_list != options.user_list
+        if options.sound_effect_id is not None:
+            sound_effect = await self.session.get(SoundEffect, options.sound_effect_id)
+            if sound_effect is None or sound_effect.user_id != user.id:
+                raise ValueError("Sound effect not found")
+
+        audio.user_list = options.user_list
+        audio.use_beep = options.use_beep
+        audio.sound_effect_id = options.sound_effect_id
+        
+        self.session.add(audio)
+        await self.session.commit()
+        await self.session.refresh(audio)
+
+        audio_id_value = str(audio.id)
+        if user_list_changed:
+            chain(
+                detect_profanity_task.si(audio_id_value),
+                render_audio_task.si(audio_id_value),
+            ).apply_async()
+        else:
+            render_audio_task.delay(audio_id_value)
+
+        return audio
+
+    async def get_subtitle(
+        self,
+        audio_id: UUID,
+        options: SubtitleOptions,
+        user: User,
+    ) -> str | None:
+        audio = await self.session.get(Audio, audio_id)
+        if audio is None or audio.user_id != user.id:
+            return None
+        if audio.transcription is None:
+            return None
+
+        cues: list[str] = []
+        for cue_number, word_segment in enumerate(audio.transcription, start=1):
+            word = str(word_segment["word"])
+            if word_segment.get("flagged", False):
+                leading_length = len(word) - len(word.lstrip())
+                trailing_length = len(word) - len(word.rstrip())
+                leading = word[:leading_length]
+                trailing = word[len(word) - trailing_length:] if trailing_length else ""
+                content = word[leading_length:len(word) - trailing_length if trailing_length else None]
+                visible_chars = max(0, options.visible_chars)
+                if visible_chars < len(content):
+                    mask_symbol = random.choice(options.symbol)
+                    content = (
+                        content[:visible_chars]
+                        + mask_symbol * (len(content) - visible_chars)
+                    )
+                word = leading + content + trailing
+
+            cues.append(
+                "\n".join(
+                    (
+                        str(cue_number),
+                        f"{self._format_srt_timestamp(word_segment['start'])} --> "
+                        f"{self._format_srt_timestamp(word_segment['end'])}",
+                        word,
+                    )
+                )
+            )
+
+        return "\n\n".join(cues)
+
+    @staticmethod
+    def _format_srt_timestamp(seconds: float) -> str:
+        milliseconds = max(0, round(seconds * 1000))
+        hours, milliseconds = divmod(milliseconds, 3_600_000)
+        minutes, milliseconds = divmod(milliseconds, 60_000)
+        seconds, milliseconds = divmod(milliseconds, 1_000)
+        return f"{hours:02}:{minutes:02}:{seconds:02},{milliseconds:03}"
         
