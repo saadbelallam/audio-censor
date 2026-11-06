@@ -1,7 +1,7 @@
 import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from polar.v2026_10.webhooks import validate_event, PolarWebhookVerificationError, WebhookOrderPaidPayload
@@ -10,6 +10,11 @@ from svix.webhooks import WebhookVerificationError as SvixWebhookVerificationErr
 from app.api.dependencies import PolarDep, UserDep, UserServiceDep
 from app.api.schemas.user import CheckoutSessionCreate, TokenData, UserCreate, UserRead
 from app.config import settings
+from app.core.exceptions import (
+    CheckoutCreationError,
+    ForbiddenWebhookSignature,
+    InvalidWebhookSignature,
+)
 
 
 router = APIRouter(tags=["User"])
@@ -63,11 +68,8 @@ async def create_checkout(body: CheckoutSessionCreate, user: UserDep, polar: Pol
         )
         return {"checkout_url": checkout.url}
     
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create checkout: {str(e)}",
-        )
+    except Exception as error:
+        raise CheckoutCreationError(f"Failed to create checkout: {error}") from error
 
     
 @router.post("/webhooks/polar", include_in_schema=False)
@@ -86,10 +88,7 @@ async def handle_polar_webhook(request: Request, service: UserServiceDep):
             if user_id is not None:
                 await service.add_credits(UUID(user_id), event.data.subtotal_amount)
     except PolarWebhookVerificationError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid webhook signature",
-        )
+        raise InvalidWebhookSignature()
 
 @router.post("/webhooks/propelauth", include_in_schema=False, status_code=status.HTTP_202_ACCEPTED)
 async def handle_propelauth_webhook(request: Request, service: UserServiceDep):
@@ -99,10 +98,7 @@ async def handle_propelauth_webhook(request: Request, service: UserServiceDep):
     try:
         wh.verify(body, dict(request.headers))
     except SvixWebhookVerificationError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid webhook signature",
-        )
+        raise ForbiddenWebhookSignature()
 
     event_data = json.loads(body)
     event_type = event_data.get("event_type")

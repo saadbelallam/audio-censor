@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Form, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import Json
 
@@ -11,6 +11,7 @@ from app.api.schemas.audio import AudioRead, CensorOptions, SubtitleOptions
 from app.api.schemas.user import UserRead
 from app.object_storage import storage
 from app.utils import get_file_path
+from app.core.exceptions import AudioNotFoundError, SoundEffectNotFoundError
 
 
 router = APIRouter(prefix="/audio", tags=["Audio"])
@@ -26,10 +27,7 @@ async def read_all_audio(service: AudioServiceDep, user: UserDep):
 async def read_audio(id: UUID, service: AudioServiceDep, user: UserDep):
     audio = await service.get_audio(id)
     if not audio or audio.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Audio not found",
-        )
+        raise AudioNotFoundError()
 
 
     return audio
@@ -58,16 +56,10 @@ async def update_audio(
     try:
         audio = await service.update_audio(id, options, user)
     except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(error),
-        ) from error
+        raise SoundEffectNotFoundError() from error
 
     if audio is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Audio not found",
-        )
+        raise AudioNotFoundError()
     return audio
 
 
@@ -81,10 +73,7 @@ async def download_subtitle(
 ):
     subtitle = await service.get_subtitle(id, options, user)
     if subtitle is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Audio or transcription not found",
-        )
+        raise AudioNotFoundError("Audio or transcription not found")
 
     return PlainTextResponse(subtitle, media_type="application/x-subrip")
 
@@ -96,10 +85,7 @@ async def download_audio(
 ):
     audio_file = await service.get_audio(id)
     if audio_file is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Audio not found",
-        )
+        raise AudioNotFoundError()
 
     url = storage.get_file_url(audio_file.censored_file_path)
     return {"file_url": url}

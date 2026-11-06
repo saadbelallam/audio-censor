@@ -1,7 +1,6 @@
 import random
 from uuid import uuid4
 
-from fastapi import HTTPException, status
 from sqlmodel import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -13,6 +12,7 @@ from app.api.schemas.audio import CensorOptions, SubtitleOptions
 from app.object_storage import storage
 from celery import chain
 from pydub import AudioSegment
+from app.core.exceptions import AudioProcessingError, SoundEffectNotFoundError
 
 
 from app.worker.tasks import (
@@ -86,10 +86,7 @@ class AudioService:
             return None
 
         if audio.status == AudioStatus.processing:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Audio is currently being processed. Please wait until processing is complete.",
-            )
+            raise AudioProcessingError()
 
         
         user_list_changed = audio.user_list != options.user_list
@@ -108,7 +105,7 @@ class AudioService:
         if options.sound_effect_id is not None:
             sound_effect = await self.session.get(SoundEffect, options.sound_effect_id)
             if sound_effect is None or sound_effect.user_id != user.id:
-                raise ValueError("Sound effect not found")
+                raise SoundEffectNotFoundError()
 
         audio.user_list = options.user_list
         audio.use_beep = options.use_beep

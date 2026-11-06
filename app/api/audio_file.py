@@ -2,11 +2,17 @@ from pathlib import Path
 from typing import Annotated
 
 from dataclasses import dataclass
-from fastapi import Depends, File, HTTPException, UploadFile, status
+from fastapi import Depends, File, UploadFile
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
 
 from app.utils import slugify
+from app.core.exceptions import (
+    AudioDurationTooLong,
+    AudioFileTooLarge,
+    InvalidAudioFile,
+    UndecodableAudioFile,
+)
 
 
 ALLOWED_AUDIO_EXTENSIONS = frozenset({"aac", "flac", "m4a", "mp3", "ogg", "wav", "webm"})
@@ -42,42 +48,24 @@ class AudioFileValidator:
             file.file.seek(current_position)
 
         if file_size > self.max_size:
-            raise HTTPException(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=f"The audio file must not exceed {self.max_size // (1024 * 1024)} MB.",
-            )
+            raise AudioFileTooLarge(self.max_size // (1024 * 1024))
 
         if not file.content_type or not file.content_type.startswith("audio/"):
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail="Invalide file type. Please upload a valid audio file.",
-            )
+            raise InvalidAudioFile()
 
         extension = Path(file.filename or "").suffix.lower().removeprefix(".")
         if extension not in ALLOWED_AUDIO_EXTENSIONS:
-            raise HTTPException(
-                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail="Invalide file type. Please upload a valid audio file.",
-            )
+            raise InvalidAudioFile()
 
         try:
             audio = AudioSegment.from_file(file.file, format=extension)
         except (CouldntDecodeError, OSError, ValueError) as error:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalide file type. Please upload a valid audio file.",
-            ) from error
+            raise UndecodableAudioFile() from error
         finally:
             file.file.seek(0)
 
         if audio.duration_seconds > self.max_audio_duration_seconds:
-            raise HTTPException(
-                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                detail=(
-                    "The audio file duration must not exceed "
-                    f"{self.max_audio_duration_seconds} seconds."
-                ),
-            )
+            raise AudioDurationTooLong(self.max_audio_duration_seconds)
 
         return AudioFileUpload(
             file=file,
