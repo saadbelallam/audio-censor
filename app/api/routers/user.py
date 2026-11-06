@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from polar.v2026_10.webhooks import validate_event, PolarWebhookVerificationError, WebhookOrderPaidPayload
 
 from app.api.dependencies import PolarDep, UserDep, UserServiceDep
-from app.api.schemas.user import TokenData, UserCreate, UserRead
+from app.api.schemas.user import CheckoutSessionCreate, TokenData, UserCreate, UserRead
 from app.config import settings
 
 
@@ -41,14 +41,23 @@ async def read_current_user(user: UserDep):
     return user
 
 @router.post("/user/checkout")
-async def create_checkout(user: UserDep, polar: PolarDep):
+async def create_checkout(body: CheckoutSessionCreate, user: UserDep, polar: PolarDep):
     
     try:
         checkout = await polar.checkouts.create(
-            product_id=settings.POLAR_PRODUCT_ID,
-            customer_email=user.email,
-            external_customer_id=str(user.id),
-            metadata={"user_id": str(user.id)},
+                products = [settings.POLAR_PRODUCT_ID],
+                customer_email = user.email,
+                external_customer_id = str(user.id),
+                metadata = {"user_id": str(user.id)},
+                prices = {
+                    settings.POLAR_PRODUCT_ID: [
+                        {
+                            "amount_type": "fixed",
+                            "price_amount": int(body.amount * 100),  # Convert to cents
+                            "price_currency": "eur",
+                        }
+                    ]
+                }
         )
         return {"checkout_url": checkout.url}
     
@@ -73,7 +82,7 @@ async def handle_polar_webhook(request: Request, service: UserServiceDep):
             
             user_id = event.data.metadata.get("user_id")
             if user_id is not None:
-                await service.add_credits(UUID(user_id))
+                await service.add_credits(UUID(user_id), event.data.subtotal_amount)
     except PolarWebhookVerificationError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
