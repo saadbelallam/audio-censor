@@ -14,6 +14,15 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "adaptix"
+version = "3.0.0b12"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/82/aa17eb2968cf7c78caf4915ca62397214f196dc1bef07e4d81bfb4c4abc5/adaptix-3.0.0b12.tar.gz", hash = "sha256:906053a39ff509f0aa4ca9faa07dffa205bd90fa41d9774cd849d3454565b0ea", size = 128634, upload-time = "2026-04-04T17:31:01.084Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/66/abcca849b17e4a3adf5116e58c51471f37264a190cee2c67f1ba57782a7f/adaptix-3.0.0b12-py3-none-any.whl", hash = "sha256:8156f0549b96fcd193d13efca7bfbda39b3d6389085556d930e204c09f9ae6ed", size = 188651, upload-time = "2026-04-04T17:30:59.17Z" },
+]
+
+[[package]]
 name = "agent-detector"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -274,6 +283,7 @@ dependencies = [
     { name = "celery" },
     { name = "fastapi", extra = ["all"] },
     { name = "passlib", extra = ["argon2"] },
+    { name = "polar-sdk" },
     { name = "psycopg2" },
     { name = "pydantic-settings" },
     { name = "pydub" },
@@ -299,6 +309,7 @@ requires-dist = [
     { name = "celery", specifier = ">=5.6.3" },
     { name = "fastapi", extras = ["all"], specifier = ">=0.162.0" },
     { name = "passlib", extras = ["argon2"], specifier = ">=1.7.4" },
+    { name = "polar-sdk", specifier = ">=1.0.2" },
     { name = "psycopg2", specifier = ">=2.9.13" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "pydub", specifier = ">=0.25.1" },
@@ -1389,6 +1400,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4e/7e/160d391368d359f7dd6dd647575499c395687beb4a6b2ebfbfbf8a20b817/poethepoet-0.49.0.tar.gz", hash = "sha256:256b72c057b5f60341bbe09498212939e558341fac4ab59d0ce478aca04f0d2a", size = 157750, upload-time = "2026-10-15T06:08:57.094Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/f5/a2404b9cb3c299cd148533d07e1a378b60aa4ae640c69fb522596ca157ae/poethepoet-0.49.0-py3-none-any.whl", hash = "sha256:97b456f3c52c9af75d4bc504e0f5cfee44545a84f446ba645a0a8f6a0131422f", size = 195985, upload-time = "2026-10-15T06:08:55.332Z" },
+]
+
+[[package]]
+name = "polar-sdk"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "adaptix" },
+    { name = "httpx" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/10/b4/6ff182038bd8d133c84061ed2d8c907f9f53f3ca3a25cf1726bee2dbec42/polar_sdk-1.0.2.tar.gz", hash = "sha256:9df91d57f7b9cb62162c1e64274e8b3cf556e4db711ac9c49b928f6bef9aeada", size = 327581, upload-time = "2026-10-02T07:00:30.008Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/e2/abec9d0e022b0cde10333fd937dba2b7057cacd3fe0a90b2c3340a02cc22/polar_sdk-1.0.2-py3-none-any.whl", hash = "sha256:170379262decb1c390e5e3c69b819cff1e3866045d08069bd49097e89760963a", size = 458808, upload-time = "2026-10-02T07:00:28.451Z" },
 ]
 
 [[package]]

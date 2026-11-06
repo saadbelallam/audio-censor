@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 import jwt
 from passlib.context import CryptContext
 from sqlmodel import select
@@ -42,3 +43,25 @@ class UserService:
 
     async def get_user(self, id: UUID) -> User | None:
         return await self.session.get(User, id)
+
+    async def deduct_credits(self, user: User, amount: int) -> User:
+        if user.credits < amount:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Insufficient credits")
+        
+        user.credits -= amount
+        self.session.add(user)
+        await self.session.commit()
+
+    async def add_credits(self, user_id: UUID) -> None:
+        user = await self.get_user(user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        print(f"Adding 100 credits to user {user.email}")
+        user.credits += 100
+        self.session.add(user)
+        await self.session.commit()

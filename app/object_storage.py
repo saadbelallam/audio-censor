@@ -28,12 +28,12 @@ class ObjectStorage:
         )
 
     def upload_file(self, file: BinaryIO, key: str, content_type: str | None) -> None:
-        extra_args = {"ContentType": content_type} if content_type is not None else None
+        file.seek(0)
         self.Client.upload_fileobj(
             file,
             self.bucket_name,
             key,
-            ExtraArgs=extra_args,
+            ExtraArgs={"ContentType": content_type} if content_type else None,
         )
 
     def download_file(self, key: str) -> BinaryIO:

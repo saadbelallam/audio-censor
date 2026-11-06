@@ -21,6 +21,7 @@ dependencies = [
     "celery>=5.6.3",
     "boto3>=1.43.124",
     "replicate>=1.0.7",
+    "polar-sdk>=1.0.2",
 ]
 
 [dependency-groups]

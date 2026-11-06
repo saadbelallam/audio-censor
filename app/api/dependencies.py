@@ -12,6 +12,7 @@ from app.database.models import User
 from app.service.audio import AudioService
 from app.service.sound_effect import SoundEffectService
 from app.service.user import UserService
+from polar.v2026_10 import PolarAsync
 
 
 ouath2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
@@ -20,7 +21,7 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 #dependency chaining
 def get_audio_service(session: SessionDep) -> AudioService:
-    return AudioService(session)
+    return AudioService(session, UserService(session))
 
 
 
@@ -67,3 +68,13 @@ SoundEffectServiceDep = Annotated[
     SoundEffectService,
     Depends(get_sound_effect_service),
 ]
+
+
+async def get_polar():
+    async with PolarAsync(
+        access_token=settings.POLAR_API_KEY,
+        environment="sandbox",
+    ) as polar:
+        yield polar
+
+PolarDep = Annotated[PolarAsync, Depends(get_polar)]

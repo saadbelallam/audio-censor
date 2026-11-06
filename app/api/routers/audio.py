@@ -7,6 +7,7 @@ from pydantic import Json
 
 from app.api.dependencies import AudioServiceDep, UserDep
 from app.api.schemas.audio import AudioRead, CensorOptions, SubtitleOptions
+from app.api.schemas.user import UserRead
 from app.object_storage import storage
 from app.utils import get_file_path
 

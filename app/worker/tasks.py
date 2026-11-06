@@ -21,11 +21,12 @@ def transcribe_audio_task(self: AudioCensor, id: str) -> None:
         session.add(audio)
         session.commit()
 
-        try:
-            audio.transcription = self.transcribe_audio(audio.file_path)
-        except Exception:
-            audio.status = AudioStatus.failed
-            raise
+        
+        audio.transcription = self.transcribe_audio(audio.file_path)
+        audio.credits_reseverd -= audio.duration
+        audio.credits_used += audio.duration
+
+        
         session.add(audio)
         session.commit()
 
@@ -42,14 +43,14 @@ def detect_profanity_task(self: AudioCensor, id: str) -> None:
             session.add(audio)
             session.commit()
 
-        try:
-            audio.transcription = self.detect_profanity(
-                audio.transcription,
-                audio.user_list,
-            )
-        except Exception:
-            audio.status = AudioStatus.failed
-            raise
+        
+        audio.transcription = self.detect_profanity(
+            audio.transcription,
+            audio.user_list,
+        )
+        audio.credits_reseverd -= audio.duration
+        audio.credits_used += audio.duration
+        
         session.add(audio)
         session.commit()
 
@@ -66,26 +67,26 @@ def render_audio_task(self: AudioCensor, id: str) -> None:
             session.add(audio)
             session.commit()
 
-        try:
-            input_path = audio.file_path
-            output_path = f"censored_{audio.file_path}"
-            sound_effect_path = (
-                get_file_path(audio.sound_effect.file_path)
-                if audio.sound_effect is not None
-                else None
-            )
-
-            self.render_audio(
-                input_path=input_path,
-                output_path=output_path,
-                word_segments=audio.transcription,
-                beep=audio.use_beep,
-                sound_effect_path=sound_effect_path,
-            )
-            audio.censored_file_path = f"censored_{audio.file_path}"
-            audio.status = AudioStatus.completed
-        except Exception:
-            audio.status = AudioStatus.failed
+        
+        input_path = audio.file_path
+        output_path = f"censored_{audio.file_path}"
+        sound_effect_path = (
+            get_file_path(audio.sound_effect.file_path)
+            if audio.sound_effect is not None
+            else None
+        )
+        self.render_audio(
+            input_path=input_path,
+            output_path=output_path,
+            word_segments=audio.transcription,
+            beep=audio.use_beep,
+            sound_effect_path=sound_effect_path,
+        )
+        audio.censored_file_path = f"censored_{audio.file_path}"
+        audio.status = AudioStatus.completed
+        audio.credits_reseverd -= audio.duration
+        audio.credits_used += audio.duration
+    
 
         session.add(audio)
         session.commit()

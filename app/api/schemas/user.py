@@ -13,6 +13,7 @@ class UserRead(BaseModel):
     id: UUID
     created_at: datetime
     email: str
+    credits: int
 
 
 class TokenData(BaseModel):
