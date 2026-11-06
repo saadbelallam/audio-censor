@@ -13,7 +13,6 @@ class AudioRead(BaseModel):
     name: str
     duration: int
     credits_used: int
-    censored_file_path: str | None
     status: AudioStatus
     user_list: list[str] | None
     use_beep: bool

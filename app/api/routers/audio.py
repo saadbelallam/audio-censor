@@ -25,11 +25,12 @@ async def read_all_audio(service: AudioServiceDep, user: UserDep):
 @router.get("/{id}", response_model=AudioRead)
 async def read_audio(id: UUID, service: AudioServiceDep, user: UserDep):
     audio = await service.get_audio(id)
-    if not audio:
+    if not audio or audio.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Audio not found",
         )
+
 
     return audio
 

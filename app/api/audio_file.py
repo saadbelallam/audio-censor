@@ -23,14 +23,14 @@ def get_audio_file(file: UploadFile = File(...)) -> AudioFileUpload:
     if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="The uploaded file must be an audio file",
+            detail="Invalide file type. Please upload a valid audio file.",
         )
 
     extension = Path(file.filename or "").suffix.lower().removeprefix(".")
     if extension not in ALLOWED_AUDIO_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="The uploaded file has an unsupported audio extension",
+            detail="Invalide file type. Please upload a valid audio file.",
         )
 
     try:
@@ -38,7 +38,7 @@ def get_audio_file(file: UploadFile = File(...)) -> AudioFileUpload:
     except (CouldntDecodeError, OSError, ValueError) as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="The uploaded file is not a valid audio file",
+            detail="Invalide file type. Please upload a valid audio file.",
         ) from error
     finally:
         file.file.seek(0)

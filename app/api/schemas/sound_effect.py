@@ -8,4 +8,3 @@ class SoundEffectRead(BaseModel):
     id: UUID
     created_at: datetime
     name: str
-    file_path: str
