@@ -22,6 +22,8 @@ dependencies = [
     "boto3>=1.43.124",
     "replicate>=1.0.7",
     "polar-sdk>=1.0.2",
+    "propelauth-fastapi>=4.4.0",
+    "svix>=2.9.1",
 ]
 
 [dependency-groups]

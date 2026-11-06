@@ -20,12 +20,13 @@ class AudioStatus(Enum):
 class User(SQLModel, table=True):
     __tablename__ = "user"
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    propelauth_id: str = Field(index=True, unique=True)
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_type=DateTime(timezone=True),
     )
     email: str
-    password_hash: str
+    # password_hash: str
     credits: int = Field(default=50)
 
     audios: list["Audio"] = Relationship(back_populates="user", sa_relationship_kwargs={"lazy": "selectin"})
