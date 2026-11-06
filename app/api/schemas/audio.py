@@ -26,7 +26,7 @@ class CensorOptions(BaseModel):
 
 
 class SubtitleOptions(BaseModel):
-    symbol: str = Field(default="*", min_length=1)
+    symbol: str = Field(default="*", min_length=1, max_length=32)
     visible_chars: int = Field(
         default=1,
         description="Number of characters to remain visible in the censored word.",

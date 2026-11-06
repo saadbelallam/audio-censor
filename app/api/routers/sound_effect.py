@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile
 
 from app.api.dependencies import SoundEffectServiceDep, UserDep
 from app.api.schemas.sound_effect import SoundEffectRead
-
+from app.api.audio_file import SoundEffectFileDep
 
 
 router = APIRouter(prefix="/sfx", tags=["Sound Effects"])
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/sfx", tags=["Sound Effects"])
 
 @router.post("/", response_model=SoundEffectRead)
 async def add_sound_effect(
-    file: UploadFile,
+    file: SoundEffectFileDep,
     user: UserDep,
     service: SoundEffectServiceDep,
 ) -> SoundEffectRead:

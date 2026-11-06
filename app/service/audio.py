@@ -1,18 +1,19 @@
 import random
 from uuid import uuid4
 
-from fastapi import UploadFile
+from fastapi import HTTPException, status
 from sqlmodel import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.audio_file import AudioFileUpload
 from app.service.user import UserService
 from app.worker.audio_censor import AudioCensor
-from app.database.models import Audio, SoundEffect, User
+from app.database.models import Audio, SoundEffect, User, AudioStatus
 from app.api.schemas.audio import CensorOptions, SubtitleOptions
 from app.object_storage import storage
 from celery import chain
 from pydub import AudioSegment
+
 
 from app.worker.tasks import (
     detect_profanity_task,
@@ -84,7 +85,21 @@ class AudioService:
         if audio is None or audio.user_id != user.id:
             return None
 
+        if audio.status == AudioStatus.processing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Audio is currently being processed. Please wait until processing is complete.",
+            )
+
+        
         user_list_changed = audio.user_list != options.user_list
+
+        if (
+            not user_list_changed
+            and audio.use_beep == options.use_beep
+            and audio.sound_effect_id == options.sound_effect_id
+        ):
+            return audio #no changes detected, return the existing audio object
 
         required_credits = audio.duration * (2 if user_list_changed else 1)
         await self.user_service.deduct_credits(user, required_credits)
