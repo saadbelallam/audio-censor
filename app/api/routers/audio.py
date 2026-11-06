@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import Json
 
 from app.api.dependencies import AudioServiceDep, UserDep
+from app.api.audio_file import AudioFileUpload
 from app.api.schemas.audio import AudioRead, CensorOptions, SubtitleOptions
 from app.api.schemas.user import UserRead
 from app.object_storage import storage
@@ -35,12 +36,12 @@ async def read_audio(id: UUID, service: AudioServiceDep, user: UserDep):
 
 @router.post("/", response_model=AudioRead)
 async def submit_audio(
-    audio_file: UploadFile,
+    audio_file: AudioFileUpload,
     service: AudioServiceDep,
     user: UserDep,
     options: Annotated[Json[CensorOptions], Form()] = None,
-    
 ):
+    
     return await service.add_audio(audio_file, user, options)
 
 

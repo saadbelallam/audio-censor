@@ -1,4 +1,5 @@
-from uuid import UUID
+from uuid import UUID, uuid4
+from pathlib import Path
 
 from celery import Celery
 
@@ -69,7 +70,8 @@ def render_audio_task(self: AudioCensor, id: str) -> None:
 
         
         input_path = audio.file_path
-        output_path = f"censored_{audio.file_path}"
+        output_path = audio.censored_file_path or f"users/{audio.user_id}/audios/{uuid4()}{Path(audio.file_path).suffix}"
+
         sound_effect_path = (
             get_file_path(audio.sound_effect.file_path)
             if audio.sound_effect is not None
@@ -82,7 +84,7 @@ def render_audio_task(self: AudioCensor, id: str) -> None:
             beep=audio.use_beep,
             sound_effect_path=sound_effect_path,
         )
-        audio.censored_file_path = f"censored_{audio.file_path}"
+        audio.censored_file_path = output_path
         audio.status = AudioStatus.completed
         audio.credits_reseverd -= audio.duration
         audio.credits_used += audio.duration

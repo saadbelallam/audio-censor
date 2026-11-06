@@ -1,9 +1,11 @@
 import random
+from uuid import uuid4
 
 from fastapi import UploadFile
 from sqlmodel import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.api.audio_file import AudioFileUpload
 from app.service.user import UserService
 from app.worker.audio_censor import AudioCensor
 from app.database.models import Audio, SoundEffect, User
@@ -28,18 +30,30 @@ class AudioService:
     async def get_audio(self, id: UUID) -> Audio | None:
         return await self.session.get(Audio, id)
     
-    async def add_audio(self, file: UploadFile, user: User, options: CensorOptions | None = None) -> Audio:
-        duration = round(AudioSegment.from_file(file.file).duration_seconds)
+    async def add_audio(
+        self,
+        audio_file: AudioFileUpload,
+        user: User,
+        options: CensorOptions | None = None
+        ) -> Audio:
+
+        duration = audio_file.duration
         required_credits = duration * 3
         await self.user_service.deduct_credits(user, required_credits)
 
         # Save the uploaded file to object storage
-        storage.upload_file(file.file, file.filename, file.content_type)
+        file_key = f"users/{user.id}/audios/{uuid4()}.{audio_file.file_extension}"
+
+        storage.upload_file(
+            audio_file.file.file,
+            key= file_key,
+            content_type= audio_file.file.content_type,
+        )
         
         audio = Audio(
-            name=file.filename.split(".")[0],
+            name=audio_file.sanitized_filename,
             duration=duration,
-            file_path=file.filename,
+            file_path=file_key,
             credits_used=required_credits,
             user_id=user.id,
             user_list=options.user_list if options else None,
