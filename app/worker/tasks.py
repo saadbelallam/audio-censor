@@ -3,12 +3,12 @@ from pathlib import Path
 
 from celery import Celery
 
-from app.config import settings
+from app.config.shared import db_settings
 from app.database.models import Audio, AudioStatus
 from app.utils import get_file_path
 from app.worker.audio_censor import AudioCensor
 
-celery_app = Celery("tasks", broker=settings.BROKER_URL)
+celery_app = Celery("tasks", broker=db_settings.CELERY_BROKER_URL)
 
 
 @celery_app.task(base=AudioCensor, bind=True)

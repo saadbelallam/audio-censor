@@ -84,7 +84,7 @@ async def download_audio(
     user: UserDep,
 ):
     audio_file = await service.get_audio(id)
-    if audio_file is None:
+    if audio_file is None or audio_file.user_id != user.id:
         raise AudioNotFoundError()
 
     url = storage.get_file_url(audio_file.censored_file_path)

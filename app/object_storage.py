@@ -6,19 +6,19 @@ from pydub import AudioSegment
 
 import boto3
 from botocore.client import Config
-from app.config import settings
+from app.config.shared import storage_settings
 
 class ObjectStorage:
     def __init__(self):
         self.Client = boto3.client(
             service_name="s3",
-            aws_access_key_id= settings.R2_ACCESS_KEY_ID,
-            aws_secret_access_key= settings.R2_SECRET_ACCESS_KEY,
-            endpoint_url= settings.R2_ENDPOINT_URL,
+            aws_access_key_id=storage_settings.R2_ACCESS_KEY_ID,
+            aws_secret_access_key=storage_settings.R2_SECRET_ACCESS_KEY,
+            endpoint_url=storage_settings.R2_ENDPOINT_URL,
             region_name="auto",
             config=Config(signature_version="s3v4"),
         )
-        self.bucket_name = settings.R2_BUCKET_NAME
+        self.bucket_name = storage_settings.R2_BUCKET_NAME
 
     def get_file_url(self, key: str, expiry: timedelta = timedelta(hours=1)) -> str:
         return self.Client.generate_presigned_url(

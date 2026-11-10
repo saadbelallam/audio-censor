@@ -5,7 +5,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from uuid import UUID
 
 from app.api.schemas.user import UserCreate
-from app.config import settings
 from app.database.models import User
 from app.core.exceptions import InsufficientCredits, UserNotFoundError
 

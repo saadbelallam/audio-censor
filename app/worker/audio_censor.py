@@ -10,7 +10,8 @@ from rich import print_json
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine
 from uuid import UUID
-from app.config import settings
+from app.config.shared import db_settings
+from app.config.worker import worker_settings
 from app.object_storage import storage
 from replicate.client import Client
 
@@ -29,13 +30,15 @@ class Word(TypedDict):
 
 class AudioCensor(Task):
     def __init__(self) -> None:
-        self.replicate_client = Client(settings.REPLICATE_API_TOKEN)
+        self.replicate_client = Client(worker_settings.REPLICATE_API_TOKEN)
 
         self.punctuation_table = str.maketrans("", "", """!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~""")
 
         # Initialize the database engine for synchronous operations
         # Because celery tasks are synchronous, we need to use a synchronous database engine here.
-        self.engine = create_engine(url=settings.DB_URL.replace("+asyncpg", "+psycopg2"))
+        self.engine = create_engine(
+            url=db_settings.DB_URL.replace("+asyncpg", "+psycopg2")
+        )
         self.session_local = sessionmaker(
             bind=self.engine, class_=Session, expire_on_commit=False
         )

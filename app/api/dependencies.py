@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.config import settings
+from app.config.api import api_settings
 from app.database.session import get_session
 from app.database.models import User
 from app.service.audio import AudioService
@@ -18,8 +18,8 @@ from propelauth_fastapi import init_auth_async, User as PropelauthUser
 
 # ouath2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 auth = init_auth_async(
-    auth_url=settings.PROPELAUTH_AUTH_URL,
-    api_key=settings.PROPELAUTH_API_KEY,
+    auth_url=api_settings.PROPELAUTH_AUTH_URL,
+    api_key=api_settings.PROPELAUTH_API_KEY,
 )
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -77,7 +77,7 @@ SoundEffectServiceDep = Annotated[
 
 async def get_polar():
     async with PolarAsync(
-        access_token=settings.POLAR_API_KEY,
+        access_token=api_settings.POLAR_API_KEY,
         environment="sandbox",
     ) as polar:
         yield polar

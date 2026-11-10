@@ -9,7 +9,7 @@ from svix.webhooks import WebhookVerificationError as SvixWebhookVerificationErr
 
 from app.api.dependencies import PolarDep, UserDep, UserServiceDep
 from app.api.schemas.user import CheckoutSessionCreate, TokenData, UserCreate, UserRead
-from app.config import settings
+from app.config.api import api_settings
 from app.core.exceptions import (
     CheckoutCreationError,
     ForbiddenWebhookSignature,
@@ -52,19 +52,20 @@ async def create_checkout(body: CheckoutSessionCreate, user: UserDep, polar: Pol
     
     try:
         checkout = await polar.checkouts.create(
-                products = [settings.POLAR_PRODUCT_ID],
+                products = [api_settings.POLAR_PRODUCT_ID],
                 customer_email = user.email,
                 external_customer_id = str(user.id),
                 metadata = {"user_id": str(user.id)},
                 prices = {
-                    settings.POLAR_PRODUCT_ID: [
+                    api_settings.POLAR_PRODUCT_ID: [
                         {
                             "amount_type": "fixed",
                             "price_amount": int(body.amount * 100),  # Convert to cents
                             "price_currency": "eur",
                         }
                     ]
-                }
+                },
+                success_url = f"{api_settings.FRONTEND_URL}/dashboard"
         )
         return {"checkout_url": checkout.url}
     
@@ -78,7 +79,7 @@ async def handle_polar_webhook(request: Request, service: UserServiceDep):
         event = validate_event(
             body=await request.body(),
             headers=dict(request.headers),
-            secret=settings.POLAR_WEBHOOK_SECRET
+            secret=api_settings.POLAR_WEBHOOK_SECRET
         )
 
 
@@ -92,7 +93,7 @@ async def handle_polar_webhook(request: Request, service: UserServiceDep):
 
 @router.post("/webhooks/propelauth", include_in_schema=False, status_code=status.HTTP_202_ACCEPTED)
 async def handle_propelauth_webhook(request: Request, service: UserServiceDep):
-    wh = SvixWebhook(settings.PROPELAUTH_WEBHOOK_SECRET)
+    wh = SvixWebhook(api_settings.PROPELAUTH_WEBHOOK_SECRET)
     body = await request.body()
 
     try:
